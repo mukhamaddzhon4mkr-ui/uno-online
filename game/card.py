@@ -3,7 +3,7 @@ SPECIAL_POINTS = {"skip": 20, "reverse": 20, "draw2": 20, "wild": 50, "wild4": 5
 COLOR_NAMES = {
     "red": "красная",
     "yellow": "жёлтая",
-    "gren": "зелёная",
+    "green": "зелёная",
     "blue": "синяя",
     "black": "чёрная",
 }
@@ -12,7 +12,7 @@ VALUE_NAMES = {
     "skip": "пропуск",
     "reverse": "разворот",
     "draw2": "+2",
-    "wirld" : "дикая",
+    "wild" : "дикая",
     "wild4": "дикая +4"
 }
 
@@ -34,6 +34,9 @@ class Card:
             return True
         
         if self.color == current_color:
+            return True
+        
+        if self.value == top_card.value:
             return True
         
         return False
