@@ -15,10 +15,10 @@ class Player:
         return True
     
     def remove_card(self, index):
-                # номер пришёл от клиента — проверяем, что такая карта есть
-                if index < 0 or index >= len(self.hand):
-                    return None
-                return self.hand.pop(index)
+        # номер пришёл от клиента — проверяем, что такая карта есть
+        if index < 0 or index >= len(self.hand):
+            return None
+        return self.hand.pop(index)
             
     def has_playable(self, top_card, current_color):
         for card in self.hand:
