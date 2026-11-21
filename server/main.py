@@ -2,10 +2,12 @@ from fastapi import FastAPI, HTTPException, Cookie, Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from server.auth import hash_password, check_password, make_token
+from server.auth import hash_password, check_password, make_token, get_user_by_token
 from server.database import engine, create_tables
-from server.models import User, UserSession
+from server.models import User, UserSession, Game, GamePlayer
+from server.rooms import make_unique_code
 from server.schemas import UserIn
+
 
 app = FastAPI(title = "UNO Online")
 
@@ -74,5 +76,44 @@ def logout(response: Response, session_token: str | None = Cookie(default=None))
     response.delete_cookie("session_token")
     return {"status": "ok"}
     
+@app.post("/games")
+def create_game(session_token: str | None = Cookie(default=None)):
+    if session_token is None:
+        raise HTTPException(status_code=401, detail="Ты не вошёл")
+    
+    with Session(autoflush=True, bind=engine) as db:
+        user = get_user_by_token(db, session_token)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Сесcия не найдена")
+        
+        code = make_unique_code(db)
+        game = Game(room_code=code, status="waiting", id_users_host=user.id_users)
+        db.add(game)
+        db.commit()
+        
+        player = GamePlayer(id_games=game.id_games, id_users=user.id_users, seat=0)
+        db.add(player)
+        db.commit()
+        
+        return {"id_games": game.id_games, "room_code": code, "status": "waiting"}
+    
+@app.get("/games")
+def list_games():
+    with Session(autoflush=True, bind=engine) as db:
+        games = db.query(Game).filter(Game.status == "waiting").all()
+        
+        result = []
+        for game in games:
+            host = db.get(User, game.id_users_host)
+            players = db.query(GamePlayer).filter(GamePlayer.id_games == game.id_games).all()
+            
+            result.append({
+                "id_games": game.id_games,
+                "room_code": game.room_code,
+                "host": host.username,
+                "players": len(players),
+                "status": game.status,
+            })
+    return result
     
 #uvicorn server.main:app --reload
