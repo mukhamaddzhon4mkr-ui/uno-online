@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Cookie, Response
+from fastapi import FastAPI, HTTPException, Cookie, Response, WebSocket
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -7,6 +7,7 @@ from server.database import engine, create_tables
 from server.models import User, UserSession, Game, GamePlayer
 from server.rooms import make_unique_code
 from server.schemas import UserIn
+from server.ws import handle_room
 
 
 app = FastAPI(title = "UNO Online")
@@ -116,4 +117,8 @@ def list_games():
             })
     return result
     
+
+@app.websocket("/ws/game/{game_id}")
+async def game_socket(websocket: WebSocket, game_id: int, token: str):
+    await handle_room(websocket, game_id, token)
 #uvicorn server.main:app --reload
