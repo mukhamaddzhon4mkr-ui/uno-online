@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
 
 from client import api
 from client.ui_style import draw_gradient, round_rect, rotated_oval
@@ -39,7 +38,7 @@ class App(tk.Tk):
         self.bind("<Return>", self.on_enter)
         self.show_login()
 
-    # общее 
+    # Общее 
 
     def clear_screen(self):
         self.canvas.delete("screen")
@@ -74,7 +73,7 @@ class App(tk.Tk):
         self.add_widget(entry, x=x, y=y, width=268, height=38)
         return entry
 
-    #экран входа 
+    # Экран входа 
 
     def show_login(self, event=None):
         self.clear_screen()
@@ -94,7 +93,7 @@ class App(tk.Tk):
         self.canvas.create_text(548, 264, text="Пароль", anchor="nw", fill="#4a5a6a", font=("Segoe UI", 10, "bold"), tags="screen")
         self.password_entry = self.make_entry(548, 282, show="*")
 
-        # глазик
+        # Глазик
         self.canvas.create_oval(822, 293, 846, 311, outline="#8a94a6", width=1.5, tags=("screen", "eye"))
         self.canvas.create_oval(828, 298, 840, 306, fill="#8a94a6", outline="", tags=("screen", "eye"))
         self.eye_line = self.canvas.create_line(820, 313, 848, 291, fill="#8a94a6", width=1.5, tags=("screen", "eye"))
@@ -213,79 +212,151 @@ class App(tk.Tk):
 
         self.show_lobby(data["username"])
 
-    #экран лобби 
-
-    def show_lobby(self, username):
+    # Экран лобби 
+    def show_lobby(self, username, event=None):
         self.clear_screen()
         self.screen = "lobby"
-
+        self.username = username
+        self.games_shown = []
+        
+        # Шапка
         self.canvas.create_rectangle(0, 0, WIDTH, 64, fill="#2c3e50", outline="", tags="screen")
-        self.canvas.create_text(24, 32, text="Лобби", anchor="w", fill="#ffffff", font=("Segoe UI", 16, "bold"), tags="screen")
-        self.canvas.create_text(976, 32, text=f"Ты: {username}", anchor="e", fill="#b9c6d6", font=("Segoe UI", 11), tags="screen")
+        round_rect(self.canvas, 24, 14, 62, 50, 7, fill="#d0342c", outline="", tags="screen")
+        self.canvas.create_text(43, 32, text="UNO", fill="#ffffff", font=("Segoe UI", 9, "bold"), tags="screen")
+        self.canvas.create_text(78, 32, text="UNO Online", anchor="w", fill="#ffffff", font=("Segoe UI", 15, "bold"), tags="screen")
+        self.canvas.create_text(930, 32, text=f"{username} · выйти", anchor="e", fill="#b9c6d6", font=("Segoe UI", 11), tags=("screen", "logout"))
+        self.canvas.tag_bind("logout", "<Button-1>", self.do_logout)
+        
+        # Загаловок
+        self.canvas.create_text(60, 96, text="Лобби", anchor="w", fill="#ffffff", font=("Segoe UI", 26, "bold"), tags="screen")
+        self.count_item = self.canvas.create_text(180, 98, text="", anchor="w", fill="#8fe0a8", font=("Segoe UI", 11, "bold"), tags="screen")
+        
+        # Левая панель
+        round_rect(self.canvas, 60, 136, 700, 556, 18, fill="#ffffff", outline="", tags="screen")
+        self.canvas.create_text(84, 168, text="Открытые игры", anchor="nw", fill=INK, font=("Segoe UI", 16, "bold"), tags="screen")
+        self.canvas.create_text(84, 196, text="Список обновляется кнопкой справа", anchor="nw", fill=GREY, font=("Segoe UI", 10), tags="screen")
 
-        self.canvas.create_text(60, 84, text="Открытые игры", anchor="nw", fill="#ffffff", font=("Segoe UI", 16, "bold"), tags="screen")
+        self.canvas.create_text(100, 228, text="Комната", anchor="nw", fill="#9aa9b8", font=("Segoe UI", 9, "bold"), tags="screen")
+        self.canvas.create_text(184, 228, text="Хозяин", anchor="nw", fill="#9aa9b8", font=("Segoe UI", 9, "bold"), tags="screen")
+        self.canvas.create_text(356, 228, text="Игроки", anchor="nw", fill="#9aa9b8",  font=("Segoe UI", 9, "bold"), tags="screen")
+        self.canvas.create_text(446, 228, text="Статус", anchor="nw", fill="#9aa9b8", font=("Segoe UI", 9, "bold"), tags="screen")
+        self.canvas.create_line(84, 244, 676, 244, fill="#e9eef4", tags="screen")
 
-        columns = ("code", "host", "players", "status")
-        self.tree = ttk.Treeview(self, columns=columns, show="headings")
-        self.tree.heading("code", text="Комната")
-        self.tree.heading("host", text="Хозяин")
-        self.tree.heading("players", text="Игроки")
-        self.tree.heading("status", text="Статус")
-        self.tree.column("code", width=140, anchor="center")
-        self.tree.column("host", width=260)
-        self.tree.column("players", width=110, anchor="center")
-        self.tree.column("status", width=140, anchor="center")
-        self.add_widget(self.tree, x=60, y=110, width=880, height=390)
+        # Правая панель
+        round_rect(self.canvas, 720, 136, 940, 556, 18, fill="#ffffff", outline="", tags="screen")
+        self.canvas.create_text(744, 168, text="Новая игра", anchor="nw", fill=INK, font=("Segoe UI", 14, "bold"), tags="screen")
+        self.canvas_button(744, 196, 916, 248, "Создать игру", GREEN, "#ffffff", "create_game_btn", self.create_game)
 
-        self.canvas_button(60, 520, 220, 564, "Обновить", "#ffffff", "#4a5a6a", "refresh_btn", self.refresh_games, outline="#c9d3e3")
-        self.canvas_button(232, 520, 412, 564, "Создать игру", GREEN, "#ffffff", "create_game_btn", self.create_game)
-        self.canvas_button(424, 520, 624, 564, "Войти в игру", "#2980b9", "#ffffff", "join_btn", self.join_game)
-        self.canvas_button(772, 520, 940, 564, "Выйти", "#c0392b", "#ffffff", "logout_btn", self.do_logout)
+        self.canvas.create_line(744, 270, 916, 270, fill="#e9eef4", tags="screen")
 
-        self.status_item = self.canvas.create_text(60, 588, text="", anchor="w", fill="#dfe8f2", font=("Segoe UI", 11), tags="screen")
+        self.canvas.create_text(744, 292, text="По коду комнаты", anchor="nw", fill="#4a5a6a",  font=("Segoe UI", 10, "bold"), tags="screen")
+        self.code_entry = tk.Entry(self, font=("Segoe UI", 12), relief="flat", bg=FIELD_BG, highlightthickness=1, highlightbackground=FIELD_BORDER, highlightcolor=BLUE)
+        self.add_widget(self.code_entry, x=744, y=310, width=172, height=36)
+
+        self.canvas_button(744, 358, 916, 400, "Войти по коду", "#ffffff", BLUE, "join_code_btn", self.join_by_code, outline="#c9d3e3")
+        self.canvas_button(744, 412, 916, 454, "Обновить список", "#ffffff", "#4a5a6a", "refresh_btn", self.refresh_games, outline="#c9d3e3")
+
+        self.canvas.create_text(744, 486, text="Открытых игр:", anchor="nw", fill=GREY, font=("Segoe UI", 10), tags="screen")
+        self.open_count_item = self.canvas.create_text(842, 486, text="0", anchor="nw", fill=INK, font=("Segoe UI", 10, "bold"), tags="screen")
+
+        self.status_item = self.canvas.create_text(60, 582, text="", anchor="w", fill="#dfe8f2", font=("Segoe UI", 11),tags="screen")
         self.refresh_games()
+        
+    def draw_rooms(self, games):
+        # Строки
+        for i in range(4):
+            self.canvas.delete(f"room{i}")
 
-    def show_status(self, text):
-        self.canvas.itemconfig(self.status_item, text=text)
+        self.games_shown = games[:4]
 
+        for i in range(len(self.games_shown)):
+            game = self.games_shown[i]
+            y = 252 + i * 72
+            tags = ("screen", f"room{i}")
+
+            self.canvas.create_rectangle(84, y, 676, y + 64, fill="#fbfcfe" if i % 2 else "#ffffff", outline="#e6ecf3", tags=tags)
+
+            round_rect(self.canvas, 100, y + 14, 168, y + 50, 8, fill="#1f2a37", outline="", tags=tags)
+            self.canvas.create_text(134, y + 32, text=game["room_code"], fill="#ffffff", font=("Segoe UI", 11, "bold"), tags=tags)
+
+            self.canvas.create_text(184, y + 22, text=game["host"], anchor="w", fill=INK, font=("Segoe UI", 11, "bold"), tags=tags)
+            self.canvas.create_text(184, y + 42, text="хозяин комнаты", anchor="w", fill="#9aa9b8", font=("Segoe UI", 9), tags=tags)
+
+            self.canvas.create_text(356, y + 22, text=f"{game['players']} из 4", anchor="w", fill="#4a5a6a", font=("Segoe UI", 9, "bold"), tags=tags)
+            for d in range(4):
+                color = "#2f8f45" if d < game["players"] else "#dfe6ee"
+                self.canvas.create_oval(356 + d * 16, y + 40, 366 + d * 16, y + 50, fill=color, outline="", tags=tags)
+
+            if game["status"] == "waiting":
+                chip_text, chip_bg, chip_fg = "ждём", "#fff5d6", "#8a6100"
+            else:
+                chip_text, chip_bg, chip_fg = "идёт", "#eef1f5", "#667085"
+
+            round_rect(self.canvas, 446, y + 18, 570, y + 46, 14, fill=chip_bg, outline="", tags=tags)
+            self.canvas.create_text(508, y + 32, text=chip_text, fill=chip_fg, font=("Segoe UI", 10, "bold"), tags=tags)
+
+            round_rect(self.canvas, 584, y + 14, 668, y + 50, 10, fill=GREEN, outline="", tags=tags + ("join_row",))
+            self.canvas.create_text(626, y + 32, text="Войти", fill="#ffffff", font=("Segoe UI", 11, "bold"), tags=tags + ("join_row",))
+
+        self.canvas.tag_bind("join_row", "<Button-1>", self.join_row)
+        self.canvas.itemconfig(self.count_item, text=f"{len(games)} игры")
+        self.canvas.itemconfig(self.open_count_item, text=str(len(games)))
+        
     def refresh_games(self, event=None):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        self.game_ids = {}
-
         games, error = api.list_games()
         if error is not None:
             self.show_status(error)
             return
-
-        for game in games:
-            item = self.tree.insert("", "end", values=(game["room_code"], game["host"], game["players"], game["status"]))
-            self.game_ids[item] = game["id_games"]
-
+        
+        self.draw_rooms(games)
         self.show_status(f"Открытых игр: {len(games)}")
-
+        
+    def join_row(self, event=None):
+        if event is None:
+            return
+        
+        index = (event.y - 252) // 72
+        if index < 0 or index >= len(self.games_shown):
+            return
+        
+        game = self.games_shown[index]
+        self.show_status(f"Комната {game['room_code']} выбрана стол появится дальше")
+    
+    def join_by_code(self, event=None):
+        code = self.code_entry.get().strip().upper()
+        
+        if not code:
+            self.show_status("Введите код комнаты")
+            return
+        
+        games, error = api.list_games()
+        if error is not None:
+            self.show_status(error)
+            return
+        
+        for game in games:
+            if game["room_code"] == code:
+                self.show_status(f"Комната {code} найдена, стол появится дальше")
+                return
+        
+        self.show_status("Комната с таким кодом не найдена")
+        
     def create_game(self, event=None):
         game, error = api.create_game()
         if error is not None:
             self.show_status(error)
             return
-
+        
         self.refresh_games()
         self.show_status(f"Создана комната {game['room_code']}")
-
-    def join_game(self, event=None):
-        selected = self.tree.selection()
-        if not selected:
-            self.show_status("Выбери игру в списке")
-            return
-
-        game_id = self.game_ids[selected[0]]
-        self.show_status(f"Комната {game_id} выбрана, стол появится на следующем шаге")
-
+    
     def do_logout(self, event=None):
         api.logout()
         self.show_login()
-
+        
+    def show_status(self, text):
+        self.canvas.itemconfig(self.status_item, text=text)
+    
     def show_error(self, text):
         self.canvas.itemconfig(self.error_item, text=text)
 
@@ -295,9 +366,3 @@ class App(tk.Tk):
         elif self.screen == "register":
             self.do_register()
     
-    def logout():
-        try:
-            response = SESSION.post(f"{BASE_URL}/logout", timeout=5)
-        except requests.exceptions.RequestException:
-            return None, "Сервер не отвечает"
-        return _read(response)
