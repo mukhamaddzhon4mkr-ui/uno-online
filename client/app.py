@@ -18,6 +18,21 @@ RED = "#b42318"
 GREY = "#7a8a9a"
 INK = "#1f2a37"
 
+CARD_COLORS = {
+    "red": "#d0342c",
+    "yellow": "#f2b71d",
+    "green": "#2f8f45",
+    "blue": "#2a63b8",
+    "blaack": "#1c1c1c"
+}
+
+VALUE_LABELS = {
+    "skip": "0",
+    "reverse": "↕",
+    "draw2": "+2",
+    "wild": "",
+    "wild4": "+4"
+}
 
 class App(tk.Tk):
     def __init__(self):
@@ -320,7 +335,7 @@ class App(tk.Tk):
             return
         
         game = self.games_shown[index]
-        self.show_status(f"Комната {game['room_code']} выбрана стол появится дальше")
+        self.show_table()
     
     def join_by_code(self, event=None):
         code = self.code_entry.get().strip().upper()
@@ -336,7 +351,7 @@ class App(tk.Tk):
         
         for game in games:
             if game["room_code"] == code:
-                self.show_status(f"Комната {code} найдена, стол появится дальше")
+                self.show_table()
                 return
         
         self.show_status("Комната с таким кодом не найдена")
@@ -356,6 +371,122 @@ class App(tk.Tk):
         
     def show_status(self, text):
         self.canvas.itemconfig(self.status_item, text=text)
+    
+    def draw_card(self, x, y, w, h, color, label, raised=False):
+        tags = ("screen", "card")
+        fill = CARD_COLORS.get(color, "#1c1c1c")
+        
+        self.canvas.create_rectangle(x + 4, y + 6, x + w + 4, y + h + 6, fill="#1d5c3d", outline="", tags=tags)
+        self.canvas.create_rectangle(x, y, x + w, y + h, fill="#fbf8f1", outline="", tags=tags)
+        self.canvas.create_rectangle(x + 3, y + 3, x + w - 3, y + h - 3, fill=fill, outline="", tags=tags)
+        
+        rotated_oval(self.canvas, x + w / 2, y + h / 2, w * 0.32, h * 0.28, -20, fill="#ffffff", outline="", tags=tags)
+        
+        if color == "black":
+            size = int(w * 0.17)
+            cx = x + w / 2 - size
+            cy = y + h / 2 - size
+            self.canvas.create_rectangle(cx, cy, cx + size, cy + size, fill="#d0342c", outline="#ffffff", tags=tags)
+            self.canvas.create_rectangle(cx + size, cy, cx + 2 * size, cy + size, fill="#f2b71d", outline="#ffffff", tags=tags)
+            self.canvas.create_rectangle(cx, cy + size, cx + size, cy + 2 * size, fill="#2f8f45", outline="#ffffff", tags=tags)
+            self.canvas.create_rectangle(cx + size, cy + size, cx + 2 * size, cy + 2 * size, fill = "#2a63b8", outline="#ffffff", tags=tags)
+        else:
+            size = int(h * 0.34) if len(label) <= 2 else int (h * 0.20)
+            self.canvas.create_text(x + w / 2, y + h / 2, text=label, fill=fill, font=("Segoe UI", size, "bold"), tags=tags)
+            
+        if raised:
+            self.canvas.create_rectangle(x - 2, y - 2, x + w + 2, y + h + 2, outline="#ffe37a", width=2, tags = tags)
+
+    def draw_player(self, x, y, name, count):
+        tags = ("screen", "player")
+        self.canvas.create_oval(x - 26, y - 26, x + 26, y + 26, fill = "#e9f0f7", outline="#ffffff", width=2, tags=tags)
+        self.canvas.create_text(x, y + 2, text=name[0], fill="#22303f", font=("Segoe UI", 15, "bold"), tags=tags)
+        self.canvas.create_text(x, y + 42, text=name, fill="#ffffff", font=("Segoe UI", 11, "bold"), tags=tags)
+        self.canvas.create_text(x, y + 60, text=f"{count} карт", fill="#dfe8f2", font=("Segoe UI", 10, "bold"), tags=tags)
+        
+    def show_table(self, event=None):
+        # Данные дял проверки
+        self.clear_screen()
+        self.screen = "table"
+        
+        players =[
+            {"name": "Аня", "count": 7},
+            {"name": "Богдан", "count": 5},
+            {"name": "Вера", "count": 3},
+        ]
+        top = {"color": "red", "value": "7"}
+        current_color = "red"
+        deck_left = 46
+        hand = [
+            {"color": "red", "value": "3"},
+            {"color": "yellow", "value": "7"},
+            {"color": "green", "value": "skip"},
+            {"color": "blue", "value": "1"},
+            {"color": "red", "value": "7"},
+            {"color": "black", "value": "wild"},
+            {"color": "yellow", "value": "draw2"},
+        ]
+
+        # Cтол
+        self.canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#2f7d4f", outline="", tags="screen")
+        self.canvas.create_oval(90, 70, 910, 580, outline="#378a58", width=36, tags="screen")
+
+        # Шапка
+        self.canvas.create_rectangle(0, 0, WIDTH, 56, fill="#1f2a37", outline="", tags="screen")
+        self.canvas.create_text(20, 28, text="комната ABCD", anchor="w", fill="#b9c6d6", font=("Segoe UI", 12), tags="screen")
+        self.canvas.create_text(500, 28, text="Твой ход", fill="#8fe0a8", font=("Segoe UI", 13, "bold"), tags="screen")
+        self.canvas.create_text(980, 28, text=self.username, anchor="e", fill="#ffffff", font=("Segoe UI", 12, "bold"), tags=("screen", "leave"))
+        self.canvas.tag_bind("leave", "<Button-1>", self.show_lobby_again)
+
+        # Соперники
+        self.draw_player(500, 96, players[1]["name"], players[1]["count"])
+        self.draw_player(120, 290, players[2]["name"], players[2]["count"])
+
+        # Колода
+        self.canvas.create_rectangle(292, 248, 382, 380, fill="#3d4650", outline="", tags="screen")
+        self.canvas.create_rectangle(286, 242, 376, 374, fill="#59636e", outline="", tags="screen")
+        self.canvas.create_rectangle(280, 236, 370, 368, fill="#6b7682", outline="", tags="screen")
+        self.canvas.create_text(325, 300, text=str(deck_left), fill="#ffffff", font=("Segoe UI", 20, "bold"), tags="screen")
+        self.canvas.create_text(325, 402, text="Колода", fill="#dfe8f2", font=("Segoe UI", 10), tags="screen")
+
+        # Верхняя карта
+        label = VALUE_LABELS.get(top["value"], top["value"])
+        self.draw_card(430, 232, 100, 145, top["color"], label)
+
+        # Текущий цвет
+        self.canvas.create_oval(556, 246, 578, 268, fill=CARD_COLORS[current_color], outline="#ffffff", width=2, tags="screen")
+        self.canvas.create_text(586, 257, text="Красный", anchor="w", fill="#ffffff", font=("Segoe UI", 11, "bold"), tags="screen")
+
+        self.canvas.create_text(500, 428, text="Твой ход. Выбери карту", fill="#e6f0e9", font=("Segoe UI", 12), tags="screen")
+
+        # Рука
+        count = len(hand)
+        step = 64
+        card_w = 78
+        card_h = 112
+        start_x = (WIDTH - (step * (count - 1) + card_w)) / 2
+
+        for i in range(count):
+            card = hand[i]
+            x = start_x + i * step
+            y = 462
+            card_label = VALUE_LABELS.get(card["value"], card["value"])
+            self.draw_card(x, y, card_w, card_h, card["color"], card_label, raised=(i == 4))
+
+        # Кнопки
+        self.canvas_button(30, 4700, 200, 516, "Взять карту", GREEN, "#ffffff", "draw_btn", self.show_status_stub)
+        self.canvas_button(30, 520, 200, 572, "Пас", "#ffffff", "#4a5a6a", "pass_btn", self.show_status_stub, outline="#c9d3e3")
+
+        # UNO
+        self.canvas.create_oval(862, 496, 958, 592, fill="#c0281f", outline="#ffffff", width=4, tags="screen")
+        self.canvas.create_text(910, 552, text="UNO", fill="#ffffff", font=("Segoe UI", 18, "bold"), tags="screen")
+            
+    def show_status_stub(self, event=None):
+        # Заглушка для проверки
+        pass
+    
+    def show_lobby_again(self, event=None):
+        self.show_lobby(self.username)
     
     def show_error(self, text):
         self.canvas.itemconfig(self.error_item, text=text)
