@@ -1,4 +1,4 @@
-import tkinter as tk
+﻿import tkinter as tk
 
 from client import api
 from client.ui_style import draw_gradient, round_rect, rotated_oval
@@ -23,15 +23,22 @@ CARD_COLORS = {
     "yellow": "#f2b71d",
     "green": "#2f8f45",
     "blue": "#2a63b8",
-    "blaack": "#1c1c1c"
+    "black": "#1c1c1c"
 }
 
 VALUE_LABELS = {
-    "skip": "0",
+    "skip": "Ø",
     "reverse": "↕",
     "draw2": "+2",
     "wild": "",
     "wild4": "+4"
+}
+
+COLOR_NAMES = {
+    "red": "красный",
+    "yellow": "жёлтый",
+    "green": "зелёный",
+    "blue": "синий"
 }
 
 class App(tk.Tk):
@@ -372,8 +379,10 @@ class App(tk.Tk):
     def show_status(self, text):
         self.canvas.itemconfig(self.status_item, text=text)
     
-    def draw_card(self, x, y, w, h, color, label, raised=False):
+    def draw_card(self, x, y, w, h, color, label, raised=False, extra=()):
         tags = ("screen", "card")
+        for one in extra:
+            tags = tags +(one,)
         fill = CARD_COLORS.get(color, "#1c1c1c")
         
         self.canvas.create_rectangle(x + 4, y + 6, x + w + 4, y + h + 6, fill="#1d5c3d", outline="", tags=tags)
@@ -405,19 +414,19 @@ class App(tk.Tk):
         self.canvas.create_text(x, y + 60, text=f"{count} карт", fill="#dfe8f2", font=("Segoe UI", 10, "bold"), tags=tags)
         
     def show_table(self, event=None):
-        # Данные дял проверки
         self.clear_screen()
         self.screen = "table"
-        
-        players =[
+        self.selected_card = -1
+        self.table_color = "red"
+
+        players = [
             {"name": "Аня", "count": 7},
             {"name": "Богдан", "count": 5},
             {"name": "Вера", "count": 3},
         ]
         top = {"color": "red", "value": "7"}
-        current_color = "red"
         deck_left = 46
-        hand = [
+        self.table_hand = [
             {"color": "red", "value": "3"},
             {"color": "yellow", "value": "7"},
             {"color": "green", "value": "skip"},
@@ -427,60 +436,112 @@ class App(tk.Tk):
             {"color": "yellow", "value": "draw2"},
         ]
 
-        # Cтол
         self.canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#2f7d4f", outline="", tags="screen")
         self.canvas.create_oval(90, 70, 910, 580, outline="#378a58", width=36, tags="screen")
 
-        # Шапка
         self.canvas.create_rectangle(0, 0, WIDTH, 56, fill="#1f2a37", outline="", tags="screen")
         self.canvas.create_text(20, 28, text="комната ABCD", anchor="w", fill="#b9c6d6", font=("Segoe UI", 12), tags="screen")
         self.canvas.create_text(500, 28, text="Твой ход", fill="#8fe0a8", font=("Segoe UI", 13, "bold"), tags="screen")
         self.canvas.create_text(980, 28, text=self.username, anchor="e", fill="#ffffff", font=("Segoe UI", 12, "bold"), tags=("screen", "leave"))
         self.canvas.tag_bind("leave", "<Button-1>", self.show_lobby_again)
 
-        # Соперники
         self.draw_player(500, 96, players[1]["name"], players[1]["count"])
         self.draw_player(120, 290, players[2]["name"], players[2]["count"])
+        self.draw_player(880, 290, players[0]["name"], players[0]["count"])
 
-        # Колода
         self.canvas.create_rectangle(292, 248, 382, 380, fill="#3d4650", outline="", tags="screen")
         self.canvas.create_rectangle(286, 242, 376, 374, fill="#59636e", outline="", tags="screen")
         self.canvas.create_rectangle(280, 236, 370, 368, fill="#6b7682", outline="", tags="screen")
         self.canvas.create_text(325, 300, text=str(deck_left), fill="#ffffff", font=("Segoe UI", 20, "bold"), tags="screen")
         self.canvas.create_text(325, 402, text="Колода", fill="#dfe8f2", font=("Segoe UI", 10), tags="screen")
 
-        # Верхняя карта
         label = VALUE_LABELS.get(top["value"], top["value"])
         self.draw_card(430, 232, 100, 145, top["color"], label)
 
-        # Текущий цвет
-        self.canvas.create_oval(556, 246, 578, 268, fill=CARD_COLORS[current_color], outline="#ffffff", width=2, tags="screen")
-        self.canvas.create_text(586, 257, text="Красный", anchor="w", fill="#ffffff", font=("Segoe UI", 11, "bold"), tags="screen")
+        self.color_dot = self.canvas.create_oval(556, 246, 578, 268, fill=CARD_COLORS[self.table_color], outline="#ffffff", width=2, tags="screen")
+        self.color_label = self.canvas.create_text(586, 257, text=COLOR_NAMES[self.table_color], anchor="w", fill="#ffffff", font=("Segoe UI", 11, "bold"), tags="screen")
 
-        self.canvas.create_text(500, 428, text="Твой ход. Выбери карту", fill="#e6f0e9", font=("Segoe UI", 12), tags="screen")
+        self.table_status = self.canvas.create_text(500, 428, text="Твой ход. Выбери карту", fill="#e6f0e9", font=("Segoe UI", 12), tags="screen")
 
-        # Рука
-        count = len(hand)
+        self.draw_hand()
+
+        self.canvas_button(30, 470, 200, 516, "Взять карту", GREEN, "#ffffff", "draw_btn", self.show_status_stub)
+        self.canvas_button(30, 520, 200, 572, "Пас", "#ffffff", "#4a5a6a", "pass_btn", self.show_status_stub, outline="#c9d3e3")
+
+        self.canvas.create_oval(862, 496, 958, 592, fill="#c0281f", outline="#ffffff", width=4, tags="screen")
+        self.canvas.create_text(910, 552, text="UNO", fill="#ffffff", font=("Segoe UI", 18, "bold"), tags="screen")
+        
+    def draw_hand(self):
+        for i in range(len(self.table_hand)):
+            self.canvas.delete(f"hcard{i}")
+        count = len(self.table_hand)
         step = 64
         card_w = 78
         card_h = 112
-        start_x = (WIDTH - (step * (count - 1) + card_w)) / 2
-
+        start_x = (WIDTH - (step * (count -1) + card_w)) // 2
+        
         for i in range(count):
-            card = hand[i]
-            x = start_x + i * step
+            card = self.table_hand[i]
+            x = start_x + i *step
             y = 462
+            if i == self.selected_card:
+                y = 442
+                
             card_label = VALUE_LABELS.get(card["value"], card["value"])
-            self.draw_card(x, y, card_w, card_h, card["color"], card_label, raised=(i == 4))
+            self.draw_card(x, y, card_w, card_h, card["color"], card_label, raised=(i == self.selected_card), extra=(f"hcard{i}",))
+            self.canvas.tag_bind(f"hcard{i}", "<Button-1>", self.click_card)
+    
+    def click_card(self, event=None):
+        tags = self.canvas.gettags("current")
+        index = -1
+        for tag in tags:
+            if tag.startswith("hcard"):
+                index = int(tag[5:])
+        
+        if index < 0:
+            return
+        
+        self.selected_card = index
+        self.canvas.delete("picker")
+        self.draw_hand()
+        
+        card = self.table_hand[index]
+        if card["color"] == "black":
+            self.canvas.itemconfig(self.table_status, text="Выбери цвет для дикой карты")
+            self.draw_picker()
+        else:
+            text = f"Выбрана карта {VALUE_LABELS.get(card['value'], card['value'])}, цвет {COLOR_NAMES[card['color']]}"
+            self.canvas.itemconfig(self.table_status, text=text)
 
-        # Кнопки
-        self.canvas_button(30, 4700, 200, 516, "Взять карту", GREEN, "#ffffff", "draw_btn", self.show_status_stub)
-        self.canvas_button(30, 520, 200, 572, "Пас", "#ffffff", "#4a5a6a", "pass_btn", self.show_status_stub, outline="#c9d3e3")
-
-        # UNO
-        self.canvas.create_oval(862, 496, 958, 592, fill="#c0281f", outline="#ffffff", width=4, tags="screen")
-        self.canvas.create_text(910, 552, text="UNO", fill="#ffffff", font=("Segoe UI", 18, "bold"), tags="screen")
-            
+    def draw_picker(self):
+        self.canvas.delete("picker")
+        x = 300
+        for color in ["red", "yellow", "green", "blue"]:
+            self.canvas.create_oval(x, 380, x + 36, 416, fill=CARD_COLORS[color], outline="#ffffff", width=2, tags=("screen", "picker", f"pick_{color}"))
+            self.canvas.tag_bind(f"pick_{color}", "<Button-1>", self.pick_color)
+            x += 48
+    
+    def pick_color(self, event=None):
+        tags = self.canvas.gettags("current")
+        color = None 
+        for tag in tags:
+            if tag.startswith("pick_"):
+                color = tag[5:]
+        
+        if color is None:
+            return
+        
+        self.table_color = color
+        self.selected_card = -1
+        self.canvas.delete("picker")
+        self.show_color()
+        self.draw_hand()
+        self.canvas.itemconfig(self.table_status, text=f"Цвет: {COLOR_NAMES[color]}")
+        
+    def show_color(self):
+        self.canvas.itemconfig(self.color_dot, fill=CARD_COLORS[self.table_color])
+        self.canvas.itemconfig(self.color_label, text=COLOR_NAMES[self.table_color])
+                
     def show_status_stub(self, event=None):
         # Заглушка для проверки
         pass
